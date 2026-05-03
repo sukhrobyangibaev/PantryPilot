@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 import importlib
 import inspect
 import logging
@@ -39,6 +40,7 @@ class PantryPilotBootstrap:
 
         pantry_items = self._build_pantry_items(raw_items)
         inventory = self._build_inventory_snapshot(raw_items)
+        inventory.setdefault("generated_at", datetime.now().isoformat(timespec="seconds"))
         restock_plan = self._build_restock_plan(raw_items, catalog, preferences)
         offer_items = self._build_offers(pantry_items)
         offers = {
@@ -290,6 +292,9 @@ class PantryPilotBootstrap:
             return importlib.import_module(module_name)
         except ImportError as exc:
             self._warn_once(module_name, f"Could not import {module_name}: {exc}. Using scaffold fallback data.")
+            return None
+        except Exception:
+            self.logger.exception("Could not load %s. Using scaffold fallback data.", module_name)
             return None
 
     def _get_attribute(self, module: Any, attribute: str, module_name: str):
