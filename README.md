@@ -54,9 +54,15 @@ Also create a `RestockAdvisor` class that receives rule objects in its construct
 ### Task 3 (Medium): Robust Pantry Domain Model
 **File:** `pantry_pilot/models.py`
 
-Replace loose dictionaries with a proper domain object. Implement a custom exception named `InvalidPantryItemError` and a `PantryItem` dataclass with type hints for `sku`, `name`, `category`, `unit`, `quantity`, `minimum_quantity`, `days_until_expiry`, and `unit_price`. Validate that numeric values are never negative and that text fields are not blank. Normalize category and unit text so the app does not show inconsistent labels.
+Replace loose dictionaries with a proper domain object. Implement a custom exception named `InvalidPantryItemError` and a `PantryItem` dataclass with type hints for `sku`, `name`, `category`, `unit`, `quantity`, `minimum_quantity`, `days_until_expiry`, and `unit_price`. Validate that numeric values are never negative and that text fields are not blank. Normalize `category` with `.strip().title()` and `unit` with `.strip().lower()` so the app does not show inconsistent labels.
 
-Your class must include computed properties named `is_low_stock`, `is_expiring_soon`, `restock_amount`, and `estimated_restock_cost`. Add a `from_dict` classmethod for turning raw JSON data into a `PantryItem`, plus a `to_dict` method for converting the object back into a UI-friendly dictionary. Give the class a readable `__str__` implementation that would make sense in logs or debugging output. This task should make the rest of the app easier to extend, not harder.
+Your class must include computed properties:
+- `is_low_stock`: `True` when `quantity <= minimum_quantity`
+- `is_expiring_soon`: `True` when `days_until_expiry <= 3`
+- `restock_amount`: `max(1, minimum_quantity - quantity + 1)` (rebuilds the buffer)
+- `estimated_restock_cost`: `restock_amount * unit_price`, rounded to 2 decimals
+
+Add a `from_dict` classmethod for turning raw JSON data into a `PantryItem`, plus a `to_dict` method for converting the object back into a UI-friendly dictionary. `to_dict()` should include all 8 base fields plus the 4 computed properties listed above. Give the class a readable `__str__` implementation that would make sense in logs or debugging output. This task should make the rest of the app easier to extend, not harder.
 
 **Verify:** Inventory labels become cleaner and more consistent, restock quantities become more accurate, and invalid pantry data is handled gracefully instead of breaking the page.
 
