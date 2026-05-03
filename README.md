@@ -13,6 +13,66 @@ python app.py
 
 Open http://localhost:5000 in your browser.
 
+## Data Reference
+
+The app reads four JSON files from the `data/` directory. You do **not** need to edit these files, but your Python code will consume them, so their schemas are documented below.
+
+### `data/pantry.json`
+
+A list of pantry items. Each item has the following fields:
+
+| Field | Type | Example |
+|---|---|---|
+| `sku` | string | `"MILK-2L"` |
+| `name` | string | `"Whole Milk"` |
+| `category` | string | `"Dairy"` |
+| `unit` | string | `"carton"` |
+| `quantity` | integer | `1` |
+| `minimum_quantity` | integer | `2` |
+| `days_until_expiry` | integer | `2` |
+| `unit_price` | float | `3.79` |
+
+### `data/catalog.json`
+
+A list of catalog entries (one per SKU). Each entry has:
+
+| Field | Type | Example |
+|---|---|---|
+| `sku` | string | `"MILK-2L"` |
+| `name` | string | `"Whole Milk"` |
+| `category` | string | `"Dairy"` |
+| `unit` | string | `"carton"` |
+| `unit_price` | float | `3.79` |
+
+### `data/preferences.json`
+
+A single object with household preferences:
+
+| Field | Type | Description |
+|---|---|---|
+| `shopping_day_in_days` | integer | Days until the next planned shopping trip |
+| `weekend_cooking` | boolean | Whether the household cooks more on weekends |
+| `household_size` | integer | Number of people in the household |
+| `budget_focus` | string | e.g. `"balanced"` |
+
+### `data/aisle_map.json`
+
+An object that maps items to store sections:
+
+```json
+{
+  "section_order": ["Produce Market", "Dairy Aisle", "Grains & Pasta", "Canned Goods"],
+  "sku_sections": {
+    "MILK-2L": "Dairy Aisle"
+  },
+  "category_sections": {
+    "Dairy": "Dairy Aisle"
+  }
+}
+```
+
+The planner should resolve a section by checking `sku_sections` first, then falling back to `category_sections`.
+
 ## How This Works
 
 - You ONLY modify Python files listed in the tasks below.
@@ -30,6 +90,31 @@ Create a class named `InventorySnapshotBuilder` whose job is to analyze the raw 
 
 Treat an item as low stock when `quantity <= minimum_quantity`. Treat an item as expiring soon when `days_until_expiry <= 3`. `health_score` should be an integer from 0 to 100 that drops as the number of low-stock and expiring items increases. `low_stock` and `expiring_soon` should be lists of dictionaries that include at least the item name, category, current quantity, and minimum quantity. `category_totals` should be sorted from largest category to smallest so the UI can render the busiest sections first. Keep this class focused: no HTML, no printing, no shopping-plan logic.
 
+**Expected return shape from `build(items)`:**
+
+```python
+{
+    "total_items": 6,
+    "category_count": 4,
+    "health_score": 0,
+    "low_stock": [
+        {
+            "name": "Whole Milk",
+            "category": "Dairy",
+            "quantity": 1,
+            "minimum_quantity": 2,
+            "days_until_expiry": 2,
+            "unit": "carton",
+        }
+    ],
+    "expiring_soon": [...],
+    "category_totals": [
+        {"category": "Dairy", "items": 2, "quantity": 2},
+        {"category": "Grains", "items": 2, "quantity": 1},
+    ],
+}
+```
+
 **Verify:** The overview cards at the top of the dashboard show real counts, the low-stock list fills in, and the category summary is no longer empty.
 
 ---
@@ -39,7 +124,24 @@ Treat an item as low stock when `quantity <= minimum_quantity`. Treat an item as
 
 Build a restock system that follows Open/Closed and Dependency Inversion. Create an abstract `RestockRule` type with a method that receives pantry items, the grocery catalog, and household preferences, then returns suggestion dictionaries. Then create at least three concrete rule classes: one for low-stock items, one for items that will expire before the next shopping day, and one that reacts to the `weekend_cooking` preference in the seed data.
 
-Also create a `RestockAdvisor` class that receives rule objects in its constructor and exposes `build_plan(items, catalog, preferences)`. The advisor should work with the shared rule interface rather than checking concrete class names with a long `if` or `elif` chain. Each suggestion should contain `sku`, `name`, `recommended_quantity`, `priority`, and `reasons`. If two rules suggest the same item, merge them into one suggestion, keep the highest priority, and combine the reasons into a list. Sort the final plan by priority descending and then by item name.
+Also create a `RestockAdvisor` class that receives rule objects in its constructor and exposes `build_plan(items, catalog, preferences)`. The advisor should work with the shared rule interface rather than checking concrete class names with a long `if` or `elif` chain. Each suggestion should contain `sku`, `name`, `recommended_quantity`, `priority`, and `reasons`. If two rules suggest the same item, merge them into one suggestion, keep the highest priority, and combine the reasons into a list. **When merging duplicate suggestions, use the maximum `recommended_quantity` across all matching rules.** Sort the final plan by priority descending and then by item name.
+
+**Expected return shape from `build_plan(...)`:**
+
+```python
+[
+    {
+        "sku": "MILK-2L",
+        "name": "Whole Milk",
+        "recommended_quantity": 2,
+        "priority": 3,
+        "reasons": [
+            "Low stock: only 1 left (minimum 2)",
+            "Expires in 2 days (before next shopping trip)",
+        ],
+    }
+]
+```
 
 **Hints:**
 - The bootstrap system auto-discovers and instantiates your concrete `RestockRule` subclasses, then passes them as a list to your `RestockAdvisor` constructor. You only need to define the classes.
@@ -64,6 +166,25 @@ Your class must include computed properties:
 
 Add a `from_dict` classmethod for turning raw JSON data into a `PantryItem`, plus a `to_dict` method for converting the object back into a UI-friendly dictionary. `to_dict()` should include all 8 base fields plus the 4 computed properties listed above. Give the class a readable `__str__` implementation that would make sense in logs or debugging output. This task should make the rest of the app easier to extend, not harder.
 
+**Expected return shape from `to_dict()`:**
+
+```python
+{
+    "sku": "MILK-2L",
+    "name": "Whole Milk",
+    "category": "Dairy",
+    "unit": "carton",
+    "quantity": 1,
+    "minimum_quantity": 2,
+    "days_until_expiry": 2,
+    "unit_price": 3.79,
+    "is_low_stock": True,
+    "is_expiring_soon": True,
+    "restock_amount": 2,
+    "estimated_restock_cost": 7.58,
+}
+```
+
 **Verify:** Inventory labels become cleaner and more consistent, restock quantities become more accurate, and invalid pantry data is handled gracefully instead of breaking the page.
 
 ---
@@ -80,6 +201,20 @@ Implement an `OfferEngine` that receives any iterable of `Offer` objects and pro
 - **Bulk refill:** Applies when `quantity` is at least 2 below `minimum_quantity` (e.g., `quantity < max(1, minimum_quantity - 1)`). Estimated savings = `unit_price * 0.15` (rounded to 2 decimals).
 - **Rescue offer:** Applies when `days_until_expiry <= 3`. Estimated savings = the full `unit_price` (rounded to 2 decimals), representing the money saved by using the item before it spoils instead of buying a replacement.
 
+**Expected return shape from `build_offers(...)`:**
+
+```python
+[
+    {
+        "sku": "MILK-2L",
+        "title": "Use Whole Milk first",
+        "description": "Plan meals around this item before buying more.",
+        "estimated_savings": 3.79,
+        "tag": "use-first",
+    }
+]
+```
+
 **Verify:** The savings section fills with offer cards, the total estimated savings number appears, and different offer tags are visible in the browser.
 
 ---
@@ -90,6 +225,30 @@ Implement an `OfferEngine` that receives any iterable of `Offer` objects and pro
 Turn the restock plan into a structured shopping trip. Create a `ShoppingStep` dataclass, an abstract `StepOrderer` with an `order(steps)` method, and a concrete `PriorityStepOrderer` that can be used by default. Then implement a `ShoppingTrip` class that stores steps, implements `__iter__`, exposes a `total_estimated_cost` property, and provides a `summary()` method.
 
 Finally, implement `ShoppingPlanner` with a public method `build_trip(items, restock_plan, offers, aisle_map)`. The planner should match restock suggestions to aisle or store-section data, attach helpful notes from matching offers, calculate per-step estimated costs, and produce an ordered trip using the injected `StepOrderer` dependency instead of hard-coding one large sort directly inside the planner. A generator method such as `yield_priority_items()` or `yield_store_sections()` is a good fit here if it improves the design. The final trip object should be easy for the Flask app to loop over naturally.
+
+**Expected shapes:**
+
+Each `ShoppingStep` should expose these fields (as a dataclass or plain object):
+
+```python
+{
+    "section": "Dairy Aisle",
+    "sku": "MILK-2L",
+    "name": "Whole Milk",
+    "recommended_quantity": 2,
+    "priority": 3,
+    "estimated_cost": 7.58,
+    "notes": ["Low stock: only 1 left (minimum 2)", "Use Whole Milk first"],
+}
+```
+
+The `ShoppingTrip` object must:
+1. Be iterable (implement `__iter__` yielding `ShoppingStep`s).
+2. Provide a `total_estimated_cost` property (float, sum of all step costs).
+3. Provide a `summary()` method returning:
+   ```python
+   {"step_count": 6, "section_count": 4, "highest_priority": 3}
+   ```
 
 **Verify:** The trip panel shows store sections in order, each step includes useful notes, and the running total updates with realistic values.
 
