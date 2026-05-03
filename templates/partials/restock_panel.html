@@ -1,6 +1,7 @@
 {% set plan = restock_plan|default([], true) %}
+{% set restock_status = feature_statuses.restock|default({}, true) %}
 
-<section class="panel" id="restock-panel">
+<section class="panel {% if not restock_status.implemented %}panel-unimplemented{% endif %}" id="restock-panel">
     <div class="panel-header">
         <h2>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -9,9 +10,10 @@
             </svg>
             Restock Advisor
         </h2>
+        <span class="status-badge status-{{ restock_status.state|default('not-implemented') }}">{{ restock_status.badge|default('Not implemented') }}</span>
     </div>
 
-    {% if plan %}
+    {% if restock_status.implemented and plan %}
         <div class="restock-list">
             {% for item in plan %}
             <div class="restock-card">
@@ -37,14 +39,23 @@
             </div>
             {% endfor %}
         </div>
-    {% else %}
+    {% elif restock_status.implemented %}
         <div class="empty-state">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                 <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
                 <line x1="12" y1="22.08" x2="12" y2="12"></line>
             </svg>
-            <p>Restock suggestions will appear here once the advisor is implemented</p>
+            <p>Your advisor is live, but it did not return any restock suggestions.</p>
+        </div>
+    {% else %}
+        <div class="empty-state placeholder-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            <p class="empty-state-title">{{ restock_status.title|default('Restock advisor not implemented') }}</p>
+            <p>{{ restock_status.message|default('Implement the restock advisor to unlock live suggestions.') }}</p>
         </div>
     {% endif %}
 </section>

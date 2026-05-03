@@ -1,27 +1,43 @@
+{% set inventory_status = feature_statuses.inventory|default({}, true) %}
 {% set health = inventory.health_score|default(0, true)|int %}
 
-<section class="hero">
+<section class="hero {% if not inventory_status.implemented %}hero-pending{% endif %}">
     <div class="container">
         <div class="hero-content">
             <div class="hero-text">
                 <h1>Your Pantry Dashboard</h1>
-                <p class="hero-subtitle">Track inventory, plan restocks, and save on groceries</p>
+                {% if inventory_status.implemented %}
+                    <p class="hero-subtitle">Track inventory, plan restocks, and save on groceries</p>
+                {% else %}
+                    <p class="hero-subtitle">Completed tasks light up with live results. Unfinished tasks stay clearly marked.</p>
+                {% endif %}
             </div>
             <div class="hero-metrics">
-                <div class="health-score-card">
-                    <div class="health-score-label">Pantry Health</div>
-                    <div class="health-score-value" data-health-score="{{ health }}">{{ health }}%</div>
-                    <div class="health-score-bar">
-                        <div class="health-score-fill" data-health-score="{{ health }}"></div>
+                <span class="status-badge hero-status-pill status-{{ inventory_status.state|default('not-implemented') }}">
+                    {{ inventory_status.badge|default('Not implemented') }}
+                </span>
+                {% if inventory_status.implemented %}
+                    <div class="health-score-card">
+                        <div class="health-score-label">Pantry Health</div>
+                        <div class="health-score-value" data-health-score="{{ health }}">{{ health }}%</div>
+                        <div class="health-score-bar">
+                            <div class="health-score-fill" data-health-score="{{ health }}"></div>
+                        </div>
                     </div>
-                </div>
-                <div class="last-updated">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                    <span data-timestamp="{{ inventory.generated_at|default('') }}">Just now</span>
-                </div>
+                    <div class="last-updated">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span data-timestamp="{{ inventory.generated_at|default('') }}">Just now</span>
+                    </div>
+                {% else %}
+                    <div class="hero-placeholder-card">
+                        <div class="health-score-label">Pantry Health</div>
+                        <div class="hero-placeholder-title">{{ inventory_status.title|default('Inventory snapshot not implemented') }}</div>
+                        <p class="hero-placeholder-copy">{{ inventory_status.message|default('Implement the inventory task to replace scaffold placeholder data.') }}</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>

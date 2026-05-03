@@ -136,6 +136,12 @@ body {
     gap: var(--space-sm);
 }
 
+.hero-status-pill {
+    border-color: rgba(255, 255, 255, 0.25);
+    color: white;
+    background: rgba(15, 23, 42, 0.22);
+}
+
 .health-score-card {
     background: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(8px);
@@ -180,6 +186,33 @@ body {
     gap: 6px;
     font-size: 0.875rem;
     opacity: 0.8;
+}
+
+.hero-pending {
+    background: linear-gradient(135deg, #1f2937 0%, #92400e 100%);
+}
+
+.hero-placeholder-card {
+    max-width: 340px;
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: var(--radius);
+    padding: var(--space) var(--space-md);
+    text-align: left;
+}
+
+.hero-placeholder-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: var(--space-xs);
+}
+
+.hero-placeholder-copy {
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    opacity: 0.92;
 }
 
 /* Insights hero variant */
@@ -254,6 +287,56 @@ body {
 .panel-header h2 svg {
     color: var(--color-primary);
     flex-shrink: 0;
+}
+
+.panel-header-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.status-implemented {
+    background: var(--color-success-light);
+    border-color: #86efac;
+    color: #166534;
+}
+
+.status-not-implemented {
+    background: #fff7ed;
+    border-color: #fdba74;
+    color: #9a3412;
+}
+
+.status-implementation-error {
+    background: var(--color-danger-light);
+    border-color: #fca5a5;
+    color: #b91c1c;
+}
+
+.panel-unimplemented {
+    border-style: dashed;
+    border-color: #fdba74;
+    background: linear-gradient(180deg, #fffaf5 0%, #ffffff 100%);
+}
+
+.panel-unimplemented .panel-header {
+    background: linear-gradient(to right, #fff2e2, transparent);
 }
 
 /* Metrics */
@@ -839,6 +922,17 @@ body {
     font-size: 0.9375rem;
     max-width: 300px;
     line-height: 1.5;
+}
+
+.placeholder-state {
+    min-height: 230px;
+}
+
+.empty-state-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 0.35rem;
 }
 
 /* Footer */

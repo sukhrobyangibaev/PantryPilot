@@ -2,8 +2,9 @@
 {% set steps = trip_data.steps|default([], true) %}
 {% set total_cost = trip_data.total_estimated_cost|default(0, true) %}
 {% set summary = trip_data.summary|default({}, true) %}
+{% set trip_status = feature_statuses.trip|default({}, true) %}
 
-<section class="panel" id="trip-panel">
+<section class="panel {% if not trip_status.implemented %}panel-unimplemented{% endif %}" id="trip-panel">
     <div class="panel-header">
         <h2>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -11,12 +12,15 @@
             </svg>
             Shopping Trip
         </h2>
-        {% if total_cost > 0 %}
-        <div class="trip-total">Est. ${{ "%.2f"|format(total_cost) }}</div>
-        {% endif %}
+        <div class="panel-header-meta">
+            {% if trip_status.implemented and total_cost > 0 %}
+            <div class="trip-total">Est. ${{ "%.2f"|format(total_cost) }}</div>
+            {% endif %}
+            <span class="status-badge status-{{ trip_status.state|default('not-implemented') }}">{{ trip_status.badge|default('Not implemented') }}</span>
+        </div>
     </div>
 
-    {% if steps %}
+    {% if trip_status.implemented and steps %}
         {% set current_section = namespace(value='') %}
         <div class="trip-list">
             {% for step in steps %}
@@ -71,13 +75,21 @@
             </div>
         </div>
         {% endif %}
-    {% else %}
+    {% elif trip_status.implemented %}
         <div class="empty-state">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
             </svg>
-            <p>Shopping trip will be generated here once the planner is implemented</p>
+            <p>Your planner is live, but it did not return any shopping steps.</p>
+        </div>
+    {% else %}
+        <div class="empty-state placeholder-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 20l-5.447-2.724A1 1 0 0 1 3 16.382V5.618a1 1 0 0 1 1.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0 0 21 18.382V7.618a1 1 0 0 0-.553-.894L15 7m0 13V7"></path>
+            </svg>
+            <p class="empty-state-title">{{ trip_status.title|default('Shopping planner not implemented') }}</p>
+            <p>{{ trip_status.message|default('Implement the shopping planner to unlock a live trip plan.') }}</p>
         </div>
     {% endif %}
 </section>

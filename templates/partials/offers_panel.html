@@ -1,8 +1,9 @@
 {% set offer_data = offers|default({}, true) %}
 {% set offer_items = offer_data['items']|default([], true) %}
 {% set total_savings = offer_data['total_estimated_savings']|default(0, true) %}
+{% set offers_status = feature_statuses.offers|default({}, true) %}
 
-<section class="panel" id="offers-panel">
+<section class="panel {% if not offers_status.implemented %}panel-unimplemented{% endif %}" id="offers-panel">
     <div class="panel-header">
         <h2>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -12,12 +13,15 @@
             </svg>
             Savings Opportunities
         </h2>
-        {% if total_savings > 0 %}
-        <div class="savings-total">Save up to ${{ "%.2f"|format(total_savings) }}</div>
-        {% endif %}
+        <div class="panel-header-meta">
+            {% if offers_status.implemented and total_savings > 0 %}
+            <div class="savings-total">Save up to ${{ "%.2f"|format(total_savings) }}</div>
+            {% endif %}
+            <span class="status-badge status-{{ offers_status.state|default('not-implemented') }}">{{ offers_status.badge|default('Not implemented') }}</span>
+        </div>
     </div>
 
-    {% if offer_items %}
+    {% if offers_status.implemented and offer_items %}
         <div class="offers-grid">
             {% for offer in offer_items %}
             <div class="offer-card">
@@ -30,13 +34,22 @@
             </div>
             {% endfor %}
         </div>
-    {% else %}
+    {% elif offers_status.implemented %}
         <div class="empty-state">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
                 <line x1="1" y1="10" x2="23" y2="10"></line>
             </svg>
             <p>No active offers at the moment</p>
+        </div>
+    {% else %}
+        <div class="empty-state placeholder-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                <line x1="1" y1="10" x2="23" y2="10"></line>
+            </svg>
+            <p class="empty-state-title">{{ offers_status.title|default('Savings engine not implemented') }}</p>
+            <p>{{ offers_status.message|default('Implement the savings engine to unlock live offers.') }}</p>
         </div>
     {% endif %}
 </section>

@@ -2,8 +2,9 @@
 {% set metrics = rep.headline_metrics|default({}, true) %}
 {% set sections = rep.sections|default([], true) %}
 {% set generated = rep.generated_at|default('', true) %}
+{% set report_status = feature_statuses.report|default({}, true) %}
 
-<section class="panel" id="report-panel">
+<section class="panel {% if not report_status.implemented %}panel-unimplemented{% endif %}" id="report-panel">
     <div class="panel-header">
         <h2>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -15,29 +16,33 @@
             </svg>
             Pantry Insights Report
         </h2>
-        {% if generated %}
-        <div class="report-timestamp" data-timestamp="{{ generated }}">{{ generated }}</div>
-        {% endif %}
+        <div class="panel-header-meta">
+            {% if report_status.implemented and generated %}
+            <div class="report-timestamp" data-timestamp="{{ generated }}">{{ generated }}</div>
+            {% endif %}
+            <span class="status-badge status-{{ report_status.state|default('not-implemented') }}">{{ report_status.badge|default('Not implemented') }}</span>
+        </div>
     </div>
 
-    <div class="headline-metrics">
-        <div class="metric-card">
-            <div class="metric-value">{{ metrics.health_score|default(0, true) }}%</div>
-            <div class="metric-label">Health Score</div>
+    {% if report_status.implemented %}
+        <div class="headline-metrics">
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.health_score|default(0, true) }}%</div>
+                <div class="metric-label">Health Score</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.restock_items|default(0, true) }}</div>
+                <div class="metric-label">Items to Restock</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">${{ "%.2f"|format(metrics.estimated_savings|default(0, true)) }}</div>
+                <div class="metric-label">Est. Savings</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">${{ "%.2f"|format(metrics.trip_cost|default(0, true)) }}</div>
+                <div class="metric-label">Trip Cost</div>
+            </div>
         </div>
-        <div class="metric-card">
-            <div class="metric-value">{{ metrics.restock_items|default(0, true) }}</div>
-            <div class="metric-label">Items to Restock</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-value">${{ "%.2f"|format(metrics.estimated_savings|default(0, true)) }}</div>
-            <div class="metric-label">Est. Savings</div>
-        </div>
-        <div class="metric-card">
-            <div class="metric-value">${{ "%.2f"|format(metrics.trip_cost|default(0, true)) }}</div>
-            <div class="metric-label">Trip Cost</div>
-        </div>
-    </div>
 
     {% if sections %}
         <div class="report-sections">
@@ -48,18 +53,28 @@
             </div>
             {% endfor %}
         </div>
-    {% else %}
+        {% else %}
         <div class="empty-state">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
             </svg>
-            <p>Report sections will appear as features are implemented</p>
+            <p>Your report builder is live, but it did not return any report sections.</p>
+        </div>
+        {% endif %}
+    {% else %}
+        <div class="empty-state placeholder-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+            <p class="empty-state-title">{{ report_status.title|default('Insights report not implemented') }}</p>
+            <p>{{ report_status.message|default('Implement the report builder to unlock the insights page.') }}</p>
         </div>
     {% endif %}
 </section>
 
-{% if latest_report_preview %}
+{% if report_status.implemented and latest_report_preview %}
 <section class="panel" id="report-preview-panel">
     <div class="panel-header">
         <h2>Latest Report Snapshot</h2>
