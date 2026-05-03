@@ -97,13 +97,17 @@ The Flask app uses a bootstrap system that auto-discovers your classes. Here is 
 ### Task 1 (Easy): Inventory Health Snapshot
 **File:** `pantry_pilot/inventory.py`
 
-Create a class named `InventorySnapshotBuilder` whose job is to analyze the raw pantry data and build a single summary dictionary for the dashboard. This class should have one clear responsibility: inventory analysis. Give it a public method `build(items)` that accepts a list of item dictionaries from the seed data and returns a dictionary with these keys: `total_items`, `category_count`, `health_score`, `low_stock`, `expiring_soon`, and `category_totals`.
+Analyze raw pantry data and produce a single summary dictionary for the dashboard.
 
-Treat an item as low stock when `quantity <= minimum_quantity`. Treat an item as expiring soon when `days_until_expiry <= 3`. `health_score` should be an integer from 0 to 100 that drops as the number of low-stock and expiring items increases.
-
-> **Hint:** Any reasonable formula works. A simple starting point is `max(0, 100 - (len(low_stock) * 15) - (len(expiring_soon) * 10))`.
-
-`low_stock` and `expiring_soon` should be lists of dictionaries that include at least the item name, category, current quantity, and minimum quantity. `category_totals` should be sorted from largest category to smallest so the UI can render the busiest sections first. Keep this class focused: no HTML, no printing, no shopping-plan logic.
+1. Create a class `InventorySnapshotBuilder` with one clear responsibility: inventory analysis.
+   - Keep this class focused: no HTML, no printing, no shopping-plan logic.
+2. Add a public method `build(items)` that accepts a list of item dictionaries from the seed data and returns a dictionary with these keys: `total_items`, `category_count`, `health_score`, `low_stock`, `expiring_soon`, and `category_totals`.
+3. Mark an item as **low stock** when `quantity <= minimum_quantity`.
+4. Mark an item as **expiring soon** when `days_until_expiry <= 3`.
+5. Compute `health_score` as an integer from 0 to 100 that drops as the number of low-stock and expiring items increases.
+   - Any reasonable formula works. A simple starting point: `max(0, 100 - (len(low_stock) * 15) - (len(expiring_soon) * 10))`.
+6. Make `low_stock` and `expiring_soon` lists of dictionaries that include at least the item name, category, current quantity, and minimum quantity.
+7. Sort `category_totals` from the largest category to the smallest so the UI can render the busiest sections first.
 
 **Expected return shape from `build(items)`:**
 
@@ -137,9 +141,25 @@ Treat an item as low stock when `quantity <= minimum_quantity`. Treat an item as
 ### Task 2 (Easy): Extensible Restock Advisor
 **File:** `pantry_pilot/restock.py`
 
-Build a restock system that follows Open/Closed and Dependency Inversion. Create an abstract `RestockRule` type with a method that receives pantry items, the grocery catalog, and household preferences, then returns suggestion dictionaries. Then create at least three concrete rule classes: one for low-stock items, one for items that will expire before the next shopping day, and one that reacts to the `weekend_cooking` preference in the seed data.
+Build a restock system that follows Open/Closed and Dependency Inversion.
 
-Also create a `RestockAdvisor` class that receives rule objects in its constructor and exposes `build_plan(items, catalog, preferences)`. The advisor should work with the shared rule interface rather than checking concrete class names with a long `if` or `elif` chain. Each suggestion should contain `sku`, `name`, `recommended_quantity`, `priority`, and `reasons`. If two rules suggest the same item, merge them into one suggestion, keep the highest priority, and combine the reasons into a list. **When merging duplicate suggestions, use the maximum `recommended_quantity` across all matching rules.** Sort the final plan by priority descending and then by item name.
+1. Create an abstract `RestockRule` type with a method that receives pantry items, the grocery catalog, and household preferences, and returns suggestion dictionaries.
+2. Implement at least three concrete rule classes:
+   - One for low-stock items.
+   - One for items that will expire before the next shopping day.
+     - Use the `shopping_day_in_days` preference (defaults to `7`) to decide what counts as "before the next trip".
+   - One that reacts to the `weekend_cooking` preference (a boolean) in the seed data.
+   - The bootstrap system auto-discovers and instantiates your concrete `RestockRule` subclasses, so you only need to define the classes.
+3. Create a `RestockAdvisor` class that receives rule objects in its constructor and exposes `build_plan(items, catalog, preferences)`.
+   - The advisor must work with the shared rule interface — no long `if`/`elif` chain checking concrete class names.
+4. Make each suggestion a dictionary with `sku`, `name`, `recommended_quantity`, `priority`, and `reasons`.
+   - For `recommended_quantity`, a sensible default is `max(1, minimum_quantity - current_quantity + 1)` so the user rebuilds their buffer.
+   - `priority` is a relative number where higher means more urgent. A simple 1–3 scale works well (e.g., 3 for low-stock, 2 for expiring soon, 1 for weekend cooking).
+5. When two rules suggest the same item, merge them into one suggestion:
+   - Keep the highest `priority`.
+   - Use the **maximum** `recommended_quantity` across all matching rules.
+   - Combine the reasons into a single list.
+6. Sort the final plan by `priority` descending, then by item `name`.
 
 **Expected return shape from `build_plan(...)`:**
 
@@ -158,12 +178,6 @@ Also create a `RestockAdvisor` class that receives rule objects in its construct
 ]
 ```
 
-**Hints:**
-- The bootstrap system auto-discovers and instantiates your concrete `RestockRule` subclasses, then passes them as a list to your `RestockAdvisor` constructor. You only need to define the classes.
-- Available preference keys from the seed data include `shopping_day_in_days` (defaults to `7`) and `weekend_cooking` (a boolean).
-- Priority is just a relative number where higher means more urgent. A simple 1-3 scale works well (e.g., 3 for low-stock, 2 for expiring soon, 1 for weekend cooking).
-- For `recommended_quantity`, a sensible default is `max(1, minimum_quantity - current_quantity + 1)` so the user rebuilds their buffer.
-
 **Verify:** The restock panel shows suggested items, each card explains why it was suggested, and higher-priority items appear first.
 
 ---
@@ -171,15 +185,25 @@ Also create a `RestockAdvisor` class that receives rule objects in its construct
 ### Task 3 (Medium): Robust Pantry Domain Model
 **File:** `pantry_pilot/models.py`
 
-Replace loose dictionaries with a proper domain object. Implement a custom exception named `InvalidPantryItemError` and a `PantryItem` dataclass with type hints for `sku`, `name`, `category`, `unit`, `quantity`, `minimum_quantity`, `days_until_expiry`, and `unit_price`. Validate that numeric values are never negative and that text fields are not blank. **If validation fails, raise `InvalidPantryItemError`.** Normalize `category` with `.strip().title()` and `unit` with `.strip().lower()` so the app does not show inconsistent labels.
+Replace loose dictionaries with a proper domain object so the rest of the app gets easier to extend, not harder.
 
-Your class must include computed properties:
-- `is_low_stock`: `True` when `quantity <= minimum_quantity`
-- `is_expiring_soon`: `True` when `days_until_expiry <= 3`
-- `restock_amount`: `max(1, minimum_quantity - quantity + 1)` (rebuilds the buffer)
-- `estimated_restock_cost`: `restock_amount * unit_price`, rounded to 2 decimals
-
-Add a `from_dict` classmethod for turning raw JSON data into a `PantryItem`, plus a `to_dict` method for converting the object back into a UI-friendly dictionary. `to_dict()` should include all 8 base fields plus the 4 computed properties listed above. Give the class a readable `__str__` implementation that would make sense in logs or debugging output. This task should make the rest of the app easier to extend, not harder.
+1. Implement a custom exception named `InvalidPantryItemError`.
+2. Implement a `PantryItem` dataclass with type hints for `sku`, `name`, `category`, `unit`, `quantity`, `minimum_quantity`, `days_until_expiry`, and `unit_price`.
+3. Validate inputs and **raise `InvalidPantryItemError`** when validation fails:
+   - Numeric values must never be negative.
+   - Text fields must not be blank.
+4. Normalize text fields so the UI does not show inconsistent labels:
+   - `category` → `.strip().title()`
+   - `unit` → `.strip().lower()`
+5. Add these computed properties:
+   - `is_low_stock`: `True` when `quantity <= minimum_quantity`.
+   - `is_expiring_soon`: `True` when `days_until_expiry <= 3`.
+   - `restock_amount`: `max(1, minimum_quantity - quantity + 1)` (rebuilds the buffer).
+   - `estimated_restock_cost`: `restock_amount * unit_price`, rounded to 2 decimals.
+6. Add a `from_dict` classmethod that turns raw JSON data into a `PantryItem`.
+7. Add a `to_dict` method that converts the object back into a UI-friendly dictionary.
+   - Include all 8 base fields plus the 4 computed properties from step 5.
+8. Add a readable `__str__` implementation that would make sense in logs or debugging output.
 
 **Expected return shape from `to_dict()`:**
 
@@ -207,14 +231,19 @@ Add a `from_dict` classmethod for turning raw JSON data into a `PantryItem`, plu
 ### Task 4 (Medium): Pluggable Savings Engine
 **File:** `pantry_pilot/offers.py`
 
-Create a savings system that can grow without rewriting the engine. Define an abstract base class named `Offer` with methods such as `is_applicable(item: PantryItem)` and `build_offer(item: PantryItem)`. Then implement at least three concrete offer types: a category sale for staple items, a bulk refill offer for items far below their minimum level, and a rescue offer for items that expire soon and should be used before buying more.
+Create a savings system that can grow without rewriting the engine.
 
-Implement an `OfferEngine` that receives any iterable of `Offer` objects and produces a list of offer dictionaries for a list of `PantryItem` objects. The engine should depend on the shared offer interface, not on concrete class names. Every returned offer must include the item SKU, a short title, a description, an estimated savings amount, and a visual tag such as `sale`, `bundle`, or `use-first`. Design the code so adding a fourth offer class later would not require editing the engine itself.
-
-**Rules:**
-- **Staple sale:** Applies to items whose `category` is `Grains` or `Canned Goods`. Estimated savings = `unit_price * 0.10` (rounded to 2 decimals).
-- **Bulk refill:** Applies when `quantity` is at least 2 below `minimum_quantity` (e.g., `quantity < max(1, minimum_quantity - 1)`). Estimated savings = `unit_price * 0.15` (rounded to 2 decimals).
-- **Rescue offer:** Applies when `days_until_expiry <= 3`. Estimated savings = the full `unit_price` (rounded to 2 decimals), representing the money saved by using the item before it spoils instead of buying a replacement.
+1. Define an abstract base class `Offer` with methods such as `is_applicable(item: PantryItem)` and `build_offer(item: PantryItem)`.
+2. Implement at least three concrete offer types:
+   - **Staple sale** — applies when `category` is `Grains` or `Canned Goods`.
+     - Estimated savings = `unit_price * 0.10` (rounded to 2 decimals).
+   - **Bulk refill** — applies when `quantity` is at least 2 below `minimum_quantity` (e.g., `quantity < max(1, minimum_quantity - 1)`).
+     - Estimated savings = `unit_price * 0.15` (rounded to 2 decimals).
+   - **Rescue offer** — applies when `days_until_expiry <= 3` and the item should be used before buying more.
+     - Estimated savings = the full `unit_price` (rounded to 2 decimals), representing the money saved by using the item before it spoils.
+3. Implement an `OfferEngine` that takes any iterable of `Offer` objects and produces a list of offer dictionaries from a list of `PantryItem` objects.
+   - The engine must depend on the shared `Offer` interface, not on concrete class names — adding a fourth offer class later must not require editing the engine.
+4. Make every returned offer dictionary include: `sku`, a short `title`, a `description`, an `estimated_savings` amount, and a visual `tag` such as `sale`, `bundle`, or `use-first`.
 
 **Expected return shape from `build_offers(...)`:**
 
@@ -237,11 +266,22 @@ Implement an `OfferEngine` that receives any iterable of `Offer` objects and pro
 ### Task 5 (Hard): Iterable Shopping Trip Planner
 **File:** `pantry_pilot/planner.py`
 
-Turn the restock plan into a structured shopping trip. Create a `ShoppingStep` dataclass, an abstract `StepOrderer` with an `order(steps)` method, and a concrete `PriorityStepOrderer` that can be used by default. Then implement a `ShoppingTrip` class that stores steps, implements `__iter__`, exposes a `total_estimated_cost` property, and provides a `summary()` method.
+Turn the restock plan into a structured shopping trip.
 
-Finally, implement `ShoppingPlanner` with a public method `build_trip(items, restock_plan, offers, aisle_map)`. The planner should match restock suggestions to aisle or store-section data, attach helpful notes from matching offers, calculate per-step estimated costs, and produce an ordered trip using the injected `StepOrderer` dependency instead of hard-coding one large sort directly inside the planner. A generator method such as `yield_priority_items()` or `yield_store_sections()` is a good fit here if it improves the design.
-
-> **Important:** `build_trip` must return a `ShoppingTrip` instance (not a plain dict), so the Flask app can iterate over it naturally.
+1. Create a `ShoppingStep` dataclass to represent a single stop on the trip.
+2. Create an abstract `StepOrderer` with an `order(steps)` method.
+3. Create a concrete `PriorityStepOrderer` that can be used by default.
+4. Implement a `ShoppingTrip` class that stores steps and:
+   - Implements `__iter__` so callers can iterate over its `ShoppingStep`s.
+   - Exposes a `total_estimated_cost` property.
+   - Provides a `summary()` method.
+5. Implement `ShoppingPlanner` with a public method `build_trip(items, restock_plan, offers, aisle_map)`.
+   - Match each restock suggestion to its aisle / store-section using `aisle_map` (check `sku_sections` first, then fall back to `category_sections`).
+   - Attach helpful notes from any matching offers.
+   - Calculate a per-step `estimated_cost`.
+   - Produce the final ordered trip by delegating to the injected `StepOrderer` — do not hard-code one large sort inside the planner.
+   - **Important:** `build_trip` must return a `ShoppingTrip` instance (not a plain dict), so the Flask app can iterate over it naturally.
+   - A generator method such as `yield_priority_items()` or `yield_store_sections()` is a good fit here if it improves the design.
 
 **Expected shapes:**
 
@@ -274,13 +314,15 @@ The `ShoppingTrip` object must:
 ### Task 6 (Hard): Insight Report Composer
 **File:** `pantry_pilot/reports.py`
 
-Finish the application with a modular report builder rather than one giant function. Create an abstract `ReportSection` with a method like `build(context)` that returns one section of the final report. Implement at least three concrete sections: `WasteRiskSection`, `SavingsSection`, and `RestockCoverageSection`. Then implement `PantryReportBuilder`, which receives section objects and composes a final report dictionary containing `headline_metrics`, `sections`, and `generated_at`.
+Finish the application with a modular report builder rather than one giant function. Use the outputs from your earlier tasks as report context so this final feature feels like the top layer of the whole system.
 
-Also add a context manager named `ReportArchive` that writes a human-readable text snapshot of the newest report to `data/generated/latest_report.txt`. If the target folder does not exist, create it safely.
-
-> **Hint:** Use your `ReportArchive` context manager inside `PantryReportBuilder.build()` (or a dedicated helper method) so the snapshot is written every time a report is generated.
-
-The builder should depend on the `ReportSection` abstraction so new report sections can be added later without changing the builder. Use the outputs from your earlier tasks as report context so this final feature feels like the top layer of the whole system rather than a separate mini-project.
+1. Create an abstract `ReportSection` with a method like `build(context)` that returns one section of the final report.
+2. Implement at least three concrete sections: `WasteRiskSection`, `SavingsSection`, and `RestockCoverageSection`.
+3. Implement `PantryReportBuilder` that receives section objects and composes the final report dictionary with `headline_metrics`, `sections`, and `generated_at`.
+   - The builder must depend on the `ReportSection` abstraction so new sections can be added later without changing the builder.
+4. Add a context manager named `ReportArchive` that writes a human-readable text snapshot of the newest report to `data/generated/latest_report.txt`.
+   - If the target folder does not exist, create it safely.
+5. Use your `ReportArchive` context manager inside `PantryReportBuilder.build()` (or a dedicated helper method) so the snapshot is written every time a report is generated.
 
 #### Expected Interfaces
 
