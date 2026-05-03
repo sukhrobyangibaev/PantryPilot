@@ -1,0 +1,116 @@
+{% set inv = inventory|default({}, true) %}
+{% set low_stock = inv.low_stock|default([], true) %}
+{% set expiring = inv.expiring_soon|default([], true) %}
+{% set categories = inv.category_totals|default([], true) %}
+
+<section class="panel" id="inventory-panel">
+    <div class="panel-header">
+        <h2>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+            </svg>
+            Inventory Overview
+        </h2>
+    </div>
+    
+    <div class="metrics-grid">
+        <div class="metric-card">
+            <div class="metric-value">{{ inv.total_items|default(0, true) }}</div>
+            <div class="metric-label">Total Items</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{{ inv.category_count|default(0, true) }}</div>
+            <div class="metric-label">Categories</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{{ low_stock|length }}</div>
+            <div class="metric-label">Low Stock</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-value">{{ expiring|length }}</div>
+            <div class="metric-label">Expiring Soon</div>
+        </div>
+    </div>
+
+    <div class="inventory-details">
+        <div class="detail-column">
+            <h3>Low Stock Items</h3>
+            {% if low_stock %}
+                <ul class="item-list">
+                    {% for item in low_stock %}
+                    <li class="item-row warning">
+                        <div class="item-info">
+                            <span class="item-name">{{ item.name|default('Unknown') }}</span>
+                            <span class="item-category">{{ item.category|default('Uncategorized') }}</span>
+                        </div>
+                        <div class="item-quantity">
+                            <span class="quantity-current">{{ item.quantity|default(0) }}</span>
+                            <span class="quantity-separator">/</span>
+                            <span class="quantity-min">{{ item.minimum_quantity|default(0) }}</span>
+                            <span class="quantity-unit">{{ item.unit|default('units') }}</span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="empty-state">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <p>All items are well stocked</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="detail-column">
+            <h3>Expiring Soon</h3>
+            {% if expiring %}
+                <ul class="item-list">
+                    {% for item in expiring %}
+                    <li class="item-row danger">
+                        <div class="item-info">
+                            <span class="item-name">{{ item.name|default('Unknown') }}</span>
+                            <span class="item-category">{{ item.category|default('Uncategorized') }}</span>
+                        </div>
+                        <div class="item-expiry">
+                            {% if item.days_until_expiry|default(0) <= 0 %}
+                                <span class="expiry-badge expired">Expired</span>
+                            {% elif item.days_until_expiry == 1 %}
+                                <span class="expiry-badge critical">1 day</span>
+                            {% else %}
+                                <span class="expiry-badge warning">{{ item.days_until_expiry }} days</span>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="empty-state">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <p>No items expiring soon</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if categories %}
+    <div class="category-summary">
+        <h3>Category Breakdown</h3>
+        <div class="category-grid">
+            {% for cat in categories %}
+            <div class="category-card">
+                <div class="category-name">{{ cat.category }}</div>
+                <div class="category-stats">
+                    <span class="category-items">{{ cat.items }} items</span>
+                    <span class="category-quantity">{{ cat.quantity }} total</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</section>

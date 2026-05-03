@@ -1,0 +1,24 @@
+{
+  "section_order": [
+    "Produce Market",
+    "Dairy Aisle",
+    "Grains & Pasta",
+    "Canned Goods",
+    "Household Staples"
+  ],
+  "sku_sections": {
+    "MILK-2L": "Dairy Aisle",
+    "EGGS-12": "Dairy Aisle",
+    "RICE-1KG": "Grains & Pasta",
+    "PASTA-500": "Grains & Pasta",
+    "BEANS-BLK": "Canned Goods",
+    "SPINACH-BX": "Produce Market",
+    "TOMATO-6": "Produce Market"
+  },
+  "category_sections": {
+    "Produce": "Produce Market",
+    "Dairy": "Dairy Aisle",
+    "Grains": "Grains & Pasta",
+    "Canned Goods": "Canned Goods"
+  }
+}

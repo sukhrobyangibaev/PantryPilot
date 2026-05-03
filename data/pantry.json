@@ -1,0 +1,62 @@
+[
+  {
+    "sku": "MILK-2L",
+    "name": "Whole Milk",
+    "category": "Dairy",
+    "unit": "carton",
+    "quantity": 1,
+    "minimum_quantity": 2,
+    "days_until_expiry": 2,
+    "unit_price": 3.79
+  },
+  {
+    "sku": "EGGS-12",
+    "name": "Free-Range Eggs",
+    "category": "Dairy",
+    "unit": "dozen",
+    "quantity": 1,
+    "minimum_quantity": 1,
+    "days_until_expiry": 6,
+    "unit_price": 4.99
+  },
+  {
+    "sku": "RICE-1KG",
+    "name": "Jasmine Rice",
+    "category": "Grains",
+    "unit": "bag",
+    "quantity": 0,
+    "minimum_quantity": 1,
+    "days_until_expiry": 180,
+    "unit_price": 5.49
+  },
+  {
+    "sku": "PASTA-500",
+    "name": "Penne Pasta",
+    "category": "Grains",
+    "unit": "box",
+    "quantity": 1,
+    "minimum_quantity": 2,
+    "days_until_expiry": 240,
+    "unit_price": 2.39
+  },
+  {
+    "sku": "BEANS-BLK",
+    "name": "Black Beans",
+    "category": "Canned Goods",
+    "unit": "can",
+    "quantity": 2,
+    "minimum_quantity": 3,
+    "days_until_expiry": 120,
+    "unit_price": 1.69
+  },
+  {
+    "sku": "SPINACH-BX",
+    "name": "Baby Spinach",
+    "category": "Produce",
+    "unit": "box",
+    "quantity": 1,
+    "minimum_quantity": 1,
+    "days_until_expiry": 1,
+    "unit_price": 3.29
+  }
+]

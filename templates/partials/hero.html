@@ -1,0 +1,28 @@
+{% set health = inventory.health_score|default(0, true)|int %}
+
+<section class="hero">
+    <div class="container">
+        <div class="hero-content">
+            <div class="hero-text">
+                <h1>Your Pantry Dashboard</h1>
+                <p class="hero-subtitle">Track inventory, plan restocks, and save on groceries</p>
+            </div>
+            <div class="hero-metrics">
+                <div class="health-score-card">
+                    <div class="health-score-label">Pantry Health</div>
+                    <div class="health-score-value" data-health-score="{{ health }}">{{ health }}%</div>
+                    <div class="health-score-bar">
+                        <div class="health-score-fill" data-health-score="{{ health }}"></div>
+                    </div>
+                </div>
+                <div class="last-updated">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span data-timestamp="{{ inventory.generated_at|default('') }}">Just now</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,50 @@
+{% set plan = restock_plan|default([], true) %}
+
+<section class="panel" id="restock-panel">
+    <div class="panel-header">
+        <h2>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            Restock Advisor
+        </h2>
+    </div>
+
+    {% if plan %}
+        <div class="restock-list">
+            {% for item in plan %}
+            <div class="restock-card">
+                <div class="restock-header">
+                    <div class="restock-item">
+                        <span class="restock-name">{{ item.name|default('Unknown Item') }}</span>
+                        <span class="priority-badge priority-{{ item.priority|default(1) }}">
+                            {% if item.priority|default(1) >= 3 %}High{% elif item.priority == 2 %}Medium{% else %}Low{% endif %}
+                        </span>
+                    </div>
+                    <div class="restock-quantity">
+                        <span class="quantity-value">{{ item.recommended_quantity|default(1) }}</span>
+                        <span class="quantity-label">to buy</span>
+                    </div>
+                </div>
+                {% if item.reasons %}
+                <div class="restock-reasons">
+                    {% for reason in item.reasons %}
+                    <span class="reason-tag">{{ reason }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <p>Restock suggestions will appear here once the advisor is implemented</p>
+        </div>
+    {% endif %}
+</section>

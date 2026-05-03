@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+    {% include "partials/hero.html" %}
+    
+    <div class="container dashboard-grid">
+        {% include "partials/inventory_panel.html" %}
+        {% include "partials/restock_panel.html" %}
+        {% include "partials/offers_panel.html" %}
+        {% include "partials/trip_panel.html" %}
+    </div>
+{% endblock %}

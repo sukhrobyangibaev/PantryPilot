@@ -1,0 +1,51 @@
+[
+  {
+    "sku": "MILK-2L",
+    "name": "Whole Milk",
+    "category": "Dairy",
+    "unit": "carton",
+    "unit_price": 3.79
+  },
+  {
+    "sku": "EGGS-12",
+    "name": "Free-Range Eggs",
+    "category": "Dairy",
+    "unit": "dozen",
+    "unit_price": 4.99
+  },
+  {
+    "sku": "RICE-1KG",
+    "name": "Jasmine Rice",
+    "category": "Grains",
+    "unit": "bag",
+    "unit_price": 5.49
+  },
+  {
+    "sku": "PASTA-500",
+    "name": "Penne Pasta",
+    "category": "Grains",
+    "unit": "box",
+    "unit_price": 2.39
+  },
+  {
+    "sku": "BEANS-BLK",
+    "name": "Black Beans",
+    "category": "Canned Goods",
+    "unit": "can",
+    "unit_price": 1.69
+  },
+  {
+    "sku": "SPINACH-BX",
+    "name": "Baby Spinach",
+    "category": "Produce",
+    "unit": "box",
+    "unit_price": 3.29
+  },
+  {
+    "sku": "TOMATO-6",
+    "name": "Roma Tomatoes",
+    "category": "Produce",
+    "unit": "pack",
+    "unit_price": 2.89
+  }
+]

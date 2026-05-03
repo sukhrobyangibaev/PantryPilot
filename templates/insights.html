@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="hero insights-hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1>Pantry Insights</h1>
+                    <p class="hero-subtitle">Detailed analysis and reports</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container insights-grid">
+        {% include "partials/report_panel.html" %}
+    </div>
+{% endblock %}
