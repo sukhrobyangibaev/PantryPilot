@@ -75,6 +75,11 @@ Create a savings system that can grow without rewriting the engine. Define an ab
 
 Implement an `OfferEngine` that receives any iterable of `Offer` objects and produces a list of offer dictionaries for a list of `PantryItem` objects. The engine should depend on the shared offer interface, not on concrete class names. Every returned offer must include the item SKU, a short title, a description, an estimated savings amount, and a visual tag such as `sale`, `bundle`, or `use-first`. Design the code so adding a fourth offer class later would not require editing the engine itself.
 
+**Rules:**
+- **Staple sale:** Applies to items whose `category` is `Grains` or `Canned Goods`. Estimated savings = `unit_price * 0.10` (rounded to 2 decimals).
+- **Bulk refill:** Applies when `quantity` is at least 2 below `minimum_quantity` (e.g., `quantity < max(1, minimum_quantity - 1)`). Estimated savings = `unit_price * 0.15` (rounded to 2 decimals).
+- **Rescue offer:** Applies when `days_until_expiry <= 3`. Estimated savings = the full `unit_price` (rounded to 2 decimals), representing the money saved by using the item before it spoils instead of buying a replacement.
+
 **Verify:** The savings section fills with offer cards, the total estimated savings number appears, and different offer tags are visible in the browser.
 
 ---
