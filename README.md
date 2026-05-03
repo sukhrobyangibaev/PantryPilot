@@ -81,6 +81,17 @@ The planner should resolve a section by checking `sku_sections` first, then fall
 - The app is designed to keep running even when later tasks are unfinished, so some panels may stay empty until your code is ready.
 - Complete the tasks in order. Later tasks build on the earlier ones.
 
+### How Your Code Gets Loaded
+
+The Flask app uses a bootstrap system that auto-discovers your classes. Here is what happens behind the scenes:
+
+1. It imports your module (e.g., `pantry_pilot.inventory`).
+2. It looks for the required class by exact name (e.g., `InventorySnapshotBuilder`).
+3. It instantiates your class. If the constructor needs dependencies (like a list of rules), the bootstrap tries to pass them automatically.
+4. For abstract bases (`RestockRule`, `Offer`, `StepOrderer`, `ReportSection`), the bootstrap finds all **concrete subclasses** defined in the same module and instantiates them for you.
+
+**Important:** If your class is abstract, named incorrectly, or in the wrong file, the app silently falls back to built-in placeholder data. Watch the console output for warnings like *"Using fallback inventory snapshot."* — that is your cue that the loader could not find your code.
+
 ## Tasks
 
 ### Task 1 (Easy): Inventory Health Snapshot
@@ -88,7 +99,11 @@ The planner should resolve a section by checking `sku_sections` first, then fall
 
 Create a class named `InventorySnapshotBuilder` whose job is to analyze the raw pantry data and build a single summary dictionary for the dashboard. This class should have one clear responsibility: inventory analysis. Give it a public method `build(items)` that accepts a list of item dictionaries from the seed data and returns a dictionary with these keys: `total_items`, `category_count`, `health_score`, `low_stock`, `expiring_soon`, and `category_totals`.
 
-Treat an item as low stock when `quantity <= minimum_quantity`. Treat an item as expiring soon when `days_until_expiry <= 3`. `health_score` should be an integer from 0 to 100 that drops as the number of low-stock and expiring items increases. `low_stock` and `expiring_soon` should be lists of dictionaries that include at least the item name, category, current quantity, and minimum quantity. `category_totals` should be sorted from largest category to smallest so the UI can render the busiest sections first. Keep this class focused: no HTML, no printing, no shopping-plan logic.
+Treat an item as low stock when `quantity <= minimum_quantity`. Treat an item as expiring soon when `days_until_expiry <= 3`. `health_score` should be an integer from 0 to 100 that drops as the number of low-stock and expiring items increases.
+
+> **Hint:** Any reasonable formula works. A simple starting point is `max(0, 100 - (len(low_stock) * 15) - (len(expiring_soon) * 10))`.
+
+`low_stock` and `expiring_soon` should be lists of dictionaries that include at least the item name, category, current quantity, and minimum quantity. `category_totals` should be sorted from largest category to smallest so the UI can render the busiest sections first. Keep this class focused: no HTML, no printing, no shopping-plan logic.
 
 **Expected return shape from `build(items)`:**
 
@@ -156,7 +171,7 @@ Also create a `RestockAdvisor` class that receives rule objects in its construct
 ### Task 3 (Medium): Robust Pantry Domain Model
 **File:** `pantry_pilot/models.py`
 
-Replace loose dictionaries with a proper domain object. Implement a custom exception named `InvalidPantryItemError` and a `PantryItem` dataclass with type hints for `sku`, `name`, `category`, `unit`, `quantity`, `minimum_quantity`, `days_until_expiry`, and `unit_price`. Validate that numeric values are never negative and that text fields are not blank. Normalize `category` with `.strip().title()` and `unit` with `.strip().lower()` so the app does not show inconsistent labels.
+Replace loose dictionaries with a proper domain object. Implement a custom exception named `InvalidPantryItemError` and a `PantryItem` dataclass with type hints for `sku`, `name`, `category`, `unit`, `quantity`, `minimum_quantity`, `days_until_expiry`, and `unit_price`. Validate that numeric values are never negative and that text fields are not blank. **If validation fails, raise `InvalidPantryItemError`.** Normalize `category` with `.strip().title()` and `unit` with `.strip().lower()` so the app does not show inconsistent labels.
 
 Your class must include computed properties:
 - `is_low_stock`: `True` when `quantity <= minimum_quantity`
@@ -224,7 +239,9 @@ Implement an `OfferEngine` that receives any iterable of `Offer` objects and pro
 
 Turn the restock plan into a structured shopping trip. Create a `ShoppingStep` dataclass, an abstract `StepOrderer` with an `order(steps)` method, and a concrete `PriorityStepOrderer` that can be used by default. Then implement a `ShoppingTrip` class that stores steps, implements `__iter__`, exposes a `total_estimated_cost` property, and provides a `summary()` method.
 
-Finally, implement `ShoppingPlanner` with a public method `build_trip(items, restock_plan, offers, aisle_map)`. The planner should match restock suggestions to aisle or store-section data, attach helpful notes from matching offers, calculate per-step estimated costs, and produce an ordered trip using the injected `StepOrderer` dependency instead of hard-coding one large sort directly inside the planner. A generator method such as `yield_priority_items()` or `yield_store_sections()` is a good fit here if it improves the design. The final trip object should be easy for the Flask app to loop over naturally.
+Finally, implement `ShoppingPlanner` with a public method `build_trip(items, restock_plan, offers, aisle_map)`. The planner should match restock suggestions to aisle or store-section data, attach helpful notes from matching offers, calculate per-step estimated costs, and produce an ordered trip using the injected `StepOrderer` dependency instead of hard-coding one large sort directly inside the planner. A generator method such as `yield_priority_items()` or `yield_store_sections()` is a good fit here if it improves the design.
+
+> **Important:** `build_trip` must return a `ShoppingTrip` instance (not a plain dict), so the Flask app can iterate over it naturally.
 
 **Expected shapes:**
 
@@ -259,6 +276,84 @@ The `ShoppingTrip` object must:
 
 Finish the application with a modular report builder rather than one giant function. Create an abstract `ReportSection` with a method like `build(context)` that returns one section of the final report. Implement at least three concrete sections: `WasteRiskSection`, `SavingsSection`, and `RestockCoverageSection`. Then implement `PantryReportBuilder`, which receives section objects and composes a final report dictionary containing `headline_metrics`, `sections`, and `generated_at`.
 
-Also add a context manager named `ReportArchive` that writes a human-readable text snapshot of the newest report to `data/generated/latest_report.txt` when a report is built. If the target folder does not exist, create it safely. The builder should depend on the `ReportSection` abstraction so new report sections can be added later without changing the builder. Use the outputs from your earlier tasks as report context so this final feature feels like the top layer of the whole system rather than a separate mini-project.
+Also add a context manager named `ReportArchive` that writes a human-readable text snapshot of the newest report to `data/generated/latest_report.txt`. If the target folder does not exist, create it safely.
+
+> **Hint:** Use your `ReportArchive` context manager inside `PantryReportBuilder.build()` (or a dedicated helper method) so the snapshot is written every time a report is generated.
+
+The builder should depend on the `ReportSection` abstraction so new report sections can be added later without changing the builder. Use the outputs from your earlier tasks as report context so this final feature feels like the top layer of the whole system rather than a separate mini-project.
+
+#### Expected Interfaces
+
+Your code will be discovered and wired together automatically, so it must match the following contracts exactly.
+
+**`ReportSection.build(context)`** returns a dictionary with these keys:
+```python
+{"title": str, "body": str}
+```
+
+**`PantryReportBuilder`** constructor must accept a list of section instances (positional or keyword `sections`). Its `build(context)` method must return a dictionary with this shape:
+```python
+{
+    "headline_metrics": {
+        "health_score": int,
+        "restock_items": int,
+        "estimated_savings": float,
+        "trip_cost": float,
+    },
+    "sections": [section_dict, ...],  # one dict per section, in order
+    "generated_at": str,  # ISO timestamp (e.g., "2026-05-03T10:46:15")
+}
+```
+
+**Context dictionary** passed to `build(context)` contains:
+- `inventory`: `{"health_score": int, "expiring_soon": [{"name": str}, ...]}`
+- `restock_plan`: list of items to restock
+- `offers`: `{"total_estimated_savings": float}`
+- `trip`: `{"total_estimated_cost": float, "summary": {"section_count": int}}`
+
+**`ReportArchive`** must be a context manager that writes a plain-text snapshot to `data/generated/latest_report.txt`. The snapshot should be human-readable and look like this:
+
+```
+PantryPilot Latest Report
+
+Health score: 0
+Restock items: 6
+Estimated savings: $8.86
+Trip cost: $35.00
+
+Restock Coverage
+The current plan covers 6 items across 4 store sections.
+
+Savings Opportunities
+Current offers could save about $8.86 on the next trip.
+
+Waste Risk
+2 pantry items need attention in the next few days. Watch out for: Whole Milk, Baby Spinach.
+```
 
 **Verify:** The insights page becomes populated, headline metrics appear at the top, and the latest report preview shows meaningful text generated from your Python code.
+
+---
+
+## Testing Your Work
+
+The fastest way to verify your code is to run the Flask app and check the pages in a browser:
+
+```bash
+# Start the server
+python app.py
+```
+
+Then open:
+- **Dashboard:** http://localhost:5000/
+- **Insights:** http://localhost:5000/insights
+
+If a panel is empty or shows placeholder text, check the console for warnings like *"Using fallback inventory snapshot"* — that usually means the bootstrap system could not find or instantiate your class.
+
+You can also test individual modules in a Python REPL:
+
+```python
+from pantry_pilot.inventory import InventorySnapshotBuilder
+builder = InventorySnapshotBuilder()
+# ... test builder.build([...])
+```
