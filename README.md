@@ -41,6 +41,12 @@ Build a restock system that follows Open/Closed and Dependency Inversion. Create
 
 Also create a `RestockAdvisor` class that receives rule objects in its constructor and exposes `build_plan(items, catalog, preferences)`. The advisor should work with the shared rule interface rather than checking concrete class names with a long `if` or `elif` chain. Each suggestion should contain `sku`, `name`, `recommended_quantity`, `priority`, and `reasons`. If two rules suggest the same item, merge them into one suggestion, keep the highest priority, and combine the reasons into a list. Sort the final plan by priority descending and then by item name.
 
+**Hints:**
+- The bootstrap system auto-discovers and instantiates your concrete `RestockRule` subclasses, then passes them as a list to your `RestockAdvisor` constructor. You only need to define the classes.
+- Available preference keys from the seed data include `shopping_day_in_days` (defaults to `7`) and `weekend_cooking` (a boolean).
+- Priority is just a relative number where higher means more urgent. A simple 1-3 scale works well (e.g., 3 for low-stock, 2 for expiring soon, 1 for weekend cooking).
+- For `recommended_quantity`, a sensible default is `max(1, minimum_quantity - current_quantity + 1)` so the user rebuilds their buffer.
+
 **Verify:** The restock panel shows suggested items, each card explains why it was suggested, and higher-priority items appear first.
 
 ---
