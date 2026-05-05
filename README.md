@@ -100,7 +100,6 @@ The Flask app uses a bootstrap system that auto-discovers your classes. Here is 
 Analyze raw pantry data and produce a single summary dictionary for the dashboard.
 
 1. Create a class `InventorySnapshotBuilder` with one clear responsibility: inventory analysis.
-   - Keep this class focused: no HTML, no printing, no shopping-plan logic.
 2. Add a public method `build(items)` that accepts a list of item dictionaries from the seed data and returns a dictionary with these keys: `total_items`, `category_count`, `health_score`, `low_stock`, `expiring_soon`, and `category_totals`.
 3. Mark an item as **low stock** when `quantity <= minimum_quantity`.
 4. Mark an item as **expiring soon** when `days_until_expiry <= 3`.
