@@ -104,7 +104,7 @@ Analyze raw pantry data and produce a single summary dictionary for the dashboar
 3. Mark an item as **low stock** when `quantity <= minimum_quantity`.
 4. Mark an item as **expiring soon** when `days_until_expiry <= 3`.
 5. Compute `health_score` as an integer from 0 to 100 that drops as the number of low-stock and expiring items increases.
-   - Any reasonable formula works. A simple starting point: `max(0, 100 - (len(low_stock) * 15) - (len(expiring_soon) * 10))`.
+   - Example formula: `max(0, 100 - (len(low_stock) * 15) - (len(expiring_soon) * 10))`.
 6. Make `low_stock` and `expiring_soon` lists of dictionaries that include at least the item name, category, current quantity, and minimum quantity.
 7. Sort `category_totals` from the largest category to the smallest so the UI can render the busiest sections first.
 
@@ -142,25 +142,62 @@ Analyze raw pantry data and produce a single summary dictionary for the dashboar
 
 Build a restock system that follows Open/Closed and Dependency Inversion.
 
-1. Create an abstract `RestockRule` type with a method that receives pantry items, the grocery catalog, and household preferences, and returns suggestion dictionaries.
-2. Implement at least three concrete rule classes:
-   - One for low-stock items.
-   - One for items that will expire before the next shopping day.
-     - Use the `shopping_day_in_days` preference (defaults to `7`) to decide what counts as "before the next trip".
-   - One that reacts to the `weekend_cooking` preference (a boolean) in the seed data.
-   - The bootstrap system auto-discovers and instantiates your concrete `RestockRule` subclasses, so you only need to define the classes.
-3. Create a `RestockAdvisor` class that receives rule objects in its constructor and exposes `build_plan(items, catalog, preferences)`.
-   - The advisor must work with the shared rule interface — no long `if`/`elif` chain checking concrete class names.
-4. Make each suggestion a dictionary with `sku`, `name`, `recommended_quantity`, `priority`, and `reasons`.
-   - For `recommended_quantity`, a sensible default is `max(1, minimum_quantity - current_quantity + 1)` so the user rebuilds their buffer.
-   - `priority` is a relative number where higher means more urgent. A simple 1–3 scale works well (e.g., 3 for low-stock, 2 for expiring soon, 1 for weekend cooking).
-5. When two rules suggest the same item, merge them into one suggestion:
-   - Keep the highest `priority`.
-   - Use the **maximum** `recommended_quantity` across all matching rules.
-   - Combine the reasons into a single list.
-6. Sort the final plan by `priority` descending, then by item `name`.
+#### Step 1 — Abstract base class
 
-**Expected return shape from `build_plan(...)`:**
+Create an abstract base class named `RestockRule`.
+
+It must define one abstract method called `suggest` that accepts three positional arguments — `items` (a list of pantry item dicts from `data/pantry.json`), `catalog` (a list of catalog entry dicts from `data/catalog.json`), and `preferences` (the household preferences dict from `data/preferences.json`) — and returns a list of **suggestion dictionaries** (see Step 3 for the shape).
+
+#### Step 2 — Three concrete rule classes
+
+Define exactly these three subclasses of `RestockRule`. Each one implements `suggest(...)` and returns a list of suggestion dicts.
+
+**Class `LowStockRule`** — the highest-priority rule (priority three).
+- For every item whose `quantity` is equal to or below its `minimum_quantity`, produce one suggestion.
+- Reason string: `f"Low stock: only {quantity} left (minimum {minimum_quantity})"`.
+
+**Class `ExpiringSoonRule`** — medium priority (priority two).
+- Read the `shopping_day_in_days` value from `preferences`, defaulting to seven if it is missing.
+- For every item whose `days_until_expiry` is equal to or less than that threshold, produce one suggestion.
+- Reason string: `f"Expires in {days_until_expiry} days (before next shopping trip)"`.
+
+**Class `WeekendCookingRule`** — the lowest-priority rule (priority one).
+- If the `weekend_cooking` preference is falsy, return an empty list.
+- Otherwise, for every item whose `category` is Produce, Meat, or Dairy, produce one suggestion.
+- Reason string: `"Weekend cooking planned — keep this stocked"`.
+
+#### Step 3 — Suggestion dictionary shape
+
+Each suggestion returned by `suggest(...)` must be a dict with exactly these keys:
+
+```python
+{
+    "sku": item["sku"],
+    "name": item["name"],
+    "recommended_quantity": max(1, item["minimum_quantity"] - item["quantity"] + 1),
+    "priority": <rule priority: 3, 2, or 1>,
+    "reasons": [<one reason string>],   # always a list with one string
+}
+```
+
+#### Step 4 — `RestockAdvisor` class
+
+Create a class `RestockAdvisor` whose constructor accepts a list of `rules` and stores it. It must expose a `build_plan` method that takes `items`, `catalog`, and `preferences` and returns a list of suggestion dicts.
+
+Inside `build_plan`:
+
+1. Create an empty dict `merged` keyed by `sku`.
+2. Loop over every rule in `self.rules` and call its `suggest` method with `items`, `catalog`, and `preferences`, then loop over the returned suggestions.
+   - Use the shared `suggest` interface — **do not** check rule class names with `isinstance` or `if`/`elif`.
+3. For each suggestion, merge by `sku`:
+   - If the `sku` is new, add it to `merged`.
+   - If the `sku` already exists, update the existing entry:
+     - Keep the higher of the two `priority` values.
+     - Keep the higher of the two `recommended_quantity` values.
+     - Concatenate the new `reasons` onto the existing `reasons` list.
+4. Return the merged suggestions sorted by `priority` descending first, then by `name` ascending.
+
+#### Expected return shape from `build_plan(...)`
 
 ```python
 [
@@ -177,7 +214,9 @@ Build a restock system that follows Open/Closed and Dependency Inversion.
 ]
 ```
 
-**Verify:** The restock panel shows suggested items, each card explains why it was suggested, and higher-priority items appear first.
+#### Verify
+
+The restock panel shows suggested items, each card explains why it was suggested, and higher-priority items appear first.
 
 ---
 
