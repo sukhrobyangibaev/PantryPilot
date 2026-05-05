@@ -18,7 +18,7 @@ Open http://localhost:5000 in your browser.
 ### Task 1 (Easy): Inventory Health Snapshot
 **File:** `pantry_pilot/inventory.py`
 
-Analyze raw pantry data and produce a single summary dictionary for the dashboard.
+The dashboard needs a single summary of everything in the pantry — how many items there are, which ones are running low, which ones expire soon, and an overall health score. `InventorySnapshotBuilder` reads the raw item list and crunches it into one dictionary the UI can display directly.
 
 1. Create a class `InventorySnapshotBuilder` with one clear responsibility: inventory analysis.
 2. Add a public method `build(items)` that accepts a list of item dictionaries from the seed data and returns a dictionary with these keys: `total_items`, `category_count`, `health_score`, `low_stock`, `expiring_soon`, and `category_totals`.
@@ -61,7 +61,7 @@ Analyze raw pantry data and produce a single summary dictionary for the dashboar
 ### Task 2 (Easy): Extensible Restock Advisor
 **File:** `pantry_pilot/restock.py`
 
-Build a restock system that follows Open/Closed and Dependency Inversion.
+Sometimes pantry items run low, expire soon, or need a top-up before a big cooking weekend. Instead of one big function that checks all of those reasons, you'll write small rule classes — each one knows a single reason to restock. A `RestockAdvisor` collects the rules and merges their suggestions into one list the UI shows as "items to buy."
 
 #### Step 1 — Abstract base class
 
@@ -144,7 +144,7 @@ The restock panel shows suggested items, each card explains why it was suggested
 ### Task 3 (Medium): Robust Pantry Domain Model
 **File:** `pantry_pilot/models.py`
 
-Replace loose dictionaries with a proper domain object so the rest of the app gets easier to extend, not harder.
+So far every item is just a plain dictionary — a typo in a key or a negative quantity would silently break things. `PantryItem` is a dataclass that gives each item named fields, automatic validation, and handy computed properties like `is_low_stock`. It also normalizes messy text (e.g. `" dairy "` → `"Dairy"`) so the UI stays consistent.
 
 1. Implement a custom exception named `InvalidPantryItemError`.
 2. Implement a `PantryItem` dataclass with type hints for `sku`, `name`, `category`, `unit`, `quantity`, `minimum_quantity`, `days_until_expiry`, and `unit_price`.
@@ -190,7 +190,7 @@ Replace loose dictionaries with a proper domain object so the rest of the app ge
 ### Task 4 (Medium): Pluggable Savings Engine
 **File:** `pantry_pilot/offers.py`
 
-Create a savings system that can grow without rewriting the engine.
+The app can already tell you what to restock — now it should also spot ways to save money. Some items are everyday essentials that often go on sale, some need buying in bulk, and some are about to expire so you should use them up instead of buying more. You'll build an `OfferEngine` that loops over independent `Offer` classes and collects every applicable deal into a list the UI displays as savings cards.
 
 1. Define an abstract base class `Offer` with methods such as `is_applicable(item: PantryItem)` and `build_offer(item: PantryItem)`.
 2. Implement at least three concrete offer types:
@@ -225,7 +225,7 @@ Create a savings system that can grow without rewriting the engine.
 ### Task 5 (Hard): Iterable Shopping Trip Planner
 **File:** `pantry_pilot/planner.py`
 
-Turn the restock plan into a structured shopping trip.
+You have a list of items to buy and a map of where things are in the store. This task turns that into a step-by-step shopping trip — each item gets a store section, a cost estimate, and helpful notes. The trip object works with a regular `for` loop so the UI can walk through it one step at a time.
 
 1. Create a `ShoppingStep` dataclass to represent a single stop on the trip.
 2. Create an abstract `StepOrderer` with an `order(steps)` method.
@@ -273,7 +273,7 @@ The `ShoppingTrip` object must:
 ### Task 6 (Hard): Insight Report Composer
 **File:** `pantry_pilot/reports.py`
 
-Finish the application with a modular report builder rather than one giant function. Use the outputs from your earlier tasks as report context so this final feature feels like the top layer of the whole system.
+This is the final layer — it pulls together everything you built (inventory health, restock plan, offers, and trip) into a single report the insights page can display. Instead of one giant function, you'll write small section classes that each produce one part of the report. The builder also saves a plain-text snapshot to a file using a context manager (`with` block).
 
 1. Create an abstract `ReportSection` with a method like `build(context)` that returns one section of the final report.
 2. Implement at least three concrete sections: `WasteRiskSection`, `SavingsSection`, and `RestockCoverageSection`.
