@@ -13,85 +13,6 @@ python app.py
 
 Open http://localhost:5000 in your browser.
 
-## Data Reference
-
-The app reads four JSON files from the `data/` directory. You do **not** need to edit these files, but your Python code will consume them, so their schemas are documented below.
-
-### `data/pantry.json`
-
-A list of pantry items. Each item has the following fields:
-
-| Field | Type | Example |
-|---|---|---|
-| `sku` | string | `"MILK-2L"` |
-| `name` | string | `"Whole Milk"` |
-| `category` | string | `"Dairy"` |
-| `unit` | string | `"carton"` |
-| `quantity` | integer | `1` |
-| `minimum_quantity` | integer | `2` |
-| `days_until_expiry` | integer | `2` |
-| `unit_price` | float | `3.79` |
-
-### `data/catalog.json`
-
-A list of catalog entries (one per SKU). Each entry has:
-
-| Field | Type | Example |
-|---|---|---|
-| `sku` | string | `"MILK-2L"` |
-| `name` | string | `"Whole Milk"` |
-| `category` | string | `"Dairy"` |
-| `unit` | string | `"carton"` |
-| `unit_price` | float | `3.79` |
-
-### `data/preferences.json`
-
-A single object with household preferences:
-
-| Field | Type | Description |
-|---|---|---|
-| `shopping_day_in_days` | integer | Days until the next planned shopping trip |
-| `weekend_cooking` | boolean | Whether the household cooks more on weekends |
-| `household_size` | integer | Number of people in the household |
-| `budget_focus` | string | e.g. `"balanced"` |
-
-### `data/aisle_map.json`
-
-An object that maps items to store sections:
-
-```json
-{
-  "section_order": ["Produce Market", "Dairy Aisle", "Grains & Pasta", "Canned Goods"],
-  "sku_sections": {
-    "MILK-2L": "Dairy Aisle"
-  },
-  "category_sections": {
-    "Dairy": "Dairy Aisle"
-  }
-}
-```
-
-The planner should resolve a section by checking `sku_sections` first, then falling back to `category_sections`.
-
-## How This Works
-
-- You ONLY modify Python files listed in the tasks below.
-- Do NOT touch any other files.
-- After making changes, restart the app (`Ctrl+C`, then `python app.py` again) and refresh the browser.
-- The app is designed to keep running even when later tasks are unfinished, so some panels may stay empty until your code is ready.
-- Complete the tasks in order. Later tasks build on the earlier ones.
-
-### How Your Code Gets Loaded
-
-The Flask app uses a bootstrap system that auto-discovers your classes. Here is what happens behind the scenes:
-
-1. It imports your module (e.g., `pantry_pilot.inventory`).
-2. It looks for the required class by exact name (e.g., `InventorySnapshotBuilder`).
-3. It instantiates your class. If the constructor needs dependencies (like a list of rules), the bootstrap tries to pass them automatically.
-4. For abstract bases (`RestockRule`, `Offer`, `StepOrderer`, `ReportSection`), the bootstrap finds all **concrete subclasses** defined in the same module and instantiates them for you.
-
-**Important:** If your class is abstract, named incorrectly, or in the wrong file, the app silently falls back to built-in placeholder data. Watch the console output for warnings like *"Using fallback inventory snapshot."* — that is your cue that the loader could not find your code.
-
 ## Tasks
 
 ### Task 1 (Easy): Inventory Health Snapshot
@@ -413,27 +334,4 @@ Waste Risk
 
 **Verify:** The insights page becomes populated, headline metrics appear at the top, and the latest report preview shows meaningful text generated from your Python code.
 
----
 
-## Testing Your Work
-
-The fastest way to verify your code is to run the Flask app and check the pages in a browser:
-
-```bash
-# Start the server
-python app.py
-```
-
-Then open:
-- **Dashboard:** http://localhost:5000/
-- **Insights:** http://localhost:5000/insights
-
-If a panel is empty or shows placeholder text, check the console for warnings like *"Using fallback inventory snapshot"* — that usually means the bootstrap system could not find or instantiate your class.
-
-You can also test individual modules in a Python REPL:
-
-```python
-from pantry_pilot.inventory import InventorySnapshotBuilder
-builder = InventorySnapshotBuilder()
-# ... test builder.build([...])
-```
