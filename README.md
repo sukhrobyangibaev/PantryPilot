@@ -183,26 +183,36 @@ So far every item is just a plain dictionary — a typo in a key or a negative q
 }
 ```
 
-**Verify:** Inventory labels become cleaner and more consistent, restock quantities become more accurate, and invalid pantry data is handled gracefully instead of breaking the page.
+**Verify:** This task has no visible UI changes on its own. The real payoff comes in Tasks 4 and 5, which consume `PantryItem` objects — that is when normalized labels and computed properties become visible in the browser.
 
 ---
 
-### Task 4 (Medium): Pluggable Savings Engine
+### Task 4 (Medium): Flexible Savings Engine
 **File:** `pantry_pilot/offers.py`
 
 The app can already tell you what to restock — now it should also spot ways to save money. Some items are everyday essentials that often go on sale, some need buying in bulk, and some are about to expire so you should use them up instead of buying more. You'll build an `OfferEngine` that loops over independent `Offer` classes and collects every applicable deal into a list the UI displays as savings cards.
 
 1. Define an abstract base class `Offer` with methods such as `is_applicable(item: PantryItem)` and `build_offer(item: PantryItem)`.
 2. Implement at least three concrete offer types:
-   - **Staple sale** — applies when `category` is `Grains` or `Canned Goods`.
-     - Estimated savings = `unit_price * 0.10` (rounded to 2 decimals).
-   - **Bulk refill** — applies when `quantity` is at least 2 below `minimum_quantity` (e.g., `quantity < max(1, minimum_quantity - 1)`).
-     - Estimated savings = `unit_price * 0.15` (rounded to 2 decimals).
-   - **Rescue offer** — applies when `days_until_expiry <= 3` and the item should be used before buying more.
-     - Estimated savings = the full `unit_price` (rounded to 2 decimals), representing the money saved by using the item before it spoils.
-3. Implement an `OfferEngine` that takes any iterable of `Offer` objects and produces a list of offer dictionaries from a list of `PantryItem` objects.
-   - The engine must depend on the shared `Offer` interface, not on concrete class names — adding a fourth offer class later must not require editing the engine.
-4. Make every returned offer dictionary include: `sku`, a short `title`, a `description`, an `estimated_savings` amount, and a visual `tag` such as `sale`, `bundle`, or `use-first`.
+   - **Staple sale** (a discount on everyday basics like rice or canned beans) — applies when `category` is `Grains` or `Canned Goods`.
+      - Estimated savings = `unit_price * 0.10` (rounded to 2 decimals).
+      - Tag: `"sale"`.
+      - Example title: `f"{item.name} on sale"` — e.g. `"Brown Rice on sale"`.
+      - Example description: `f"Everyday staple — save on {item.name} this week."`.
+   - **Bulk refill** (a discount for buying a larger amount at once) — applies when `quantity < max(1, minimum_quantity - 1)`.
+      - Estimated savings = `unit_price * 0.15` (rounded to 2 decimals).
+      - Tag: `"bundle"`.
+      - Example title: `f"Bulk up on {item.name}"` — e.g. `"Bulk up on Whole Milk"`.
+      - Example description: `f"Buy more {item.name} at once and save per unit."`.
+   - **Rescue offer** (a reminder to use food before it goes bad, so you don't waste money) — applies when `days_until_expiry <= 3` and the item should be used before buying more.
+      - Estimated savings = the full `unit_price` (rounded to 2 decimals), representing the money saved by using the item before it spoils.
+      - Tag: `"use-first"`.
+      - Example title: `f"Use {item.name} first"` — e.g. `"Use Whole Milk first"`.
+      - Example description: `"Plan meals around this item before buying more."`.
+3. Implement an `OfferEngine` class:
+   - The constructor accepts a list of `Offer` instances and stores them.
+   - Expose a `build_offers(self, items)` method that takes a list of `PantryItem` objects and returns a list of offer dictionaries.
+4. Make every returned offer dictionary include: `sku`, a short `title`, a `description`, an `estimated_savings` amount, and the `tag` specified above for each offer type. The frontend CSS only styles these three exact tag values, so they must match.
 
 **Expected return shape from `build_offers(...)`:**
 
