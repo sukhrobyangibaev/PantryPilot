@@ -237,24 +237,60 @@ The app can already tell you what to restock — now it should also spot ways to
 
 You have a list of items to buy and a map of where things are in the store. This task turns that into a step-by-step shopping trip — each item gets a store section, a cost estimate, and helpful notes. The trip object works with a regular `for` loop so the UI can walk through it one step at a time.
 
-1. Create a `ShoppingStep` dataclass to represent a single stop on the trip.
-2. Create an abstract `StepOrderer` with an `order(steps)` method.
-3. Create a concrete `PriorityStepOrderer` that can be used by default.
-4. Implement a `ShoppingTrip` class that stores steps and:
-   - Implements `__iter__` so callers can iterate over its `ShoppingStep`s.
-   - Exposes a `total_estimated_cost` property.
-   - Provides a `summary()` method.
-5. Implement `ShoppingPlanner` with a public method `build_trip(items, restock_plan, offers, aisle_map)`.
-   - Match each restock suggestion to its aisle / store-section using `aisle_map` (check `sku_sections` first, then fall back to `category_sections`).
-   - Attach helpful notes from any matching offers.
-   - Calculate a per-step `estimated_cost`.
-   - Produce the final ordered trip by delegating to the injected `StepOrderer` — do not hard-code one large sort inside the planner.
-   - **Important:** `build_trip` must return a `ShoppingTrip` instance (not a plain dict), so the Flask app can iterate over it naturally.
-   - A generator method such as `yield_priority_items()` or `yield_store_sections()` is a good fit here if it improves the design.
+#### Step 1 — `ShoppingStep` dataclass
 
-**Expected shapes:**
+Create a `ShoppingStep` dataclass with string fields for `section`, `sku`, and `name`, integers for `recommended_quantity` and `priority`, a float for `estimated_cost`, and a `notes` list of strings that defaults to an empty list.
 
-Each `ShoppingStep` should expose these fields (as a dataclass or plain object):
+#### Step 2 — Abstract `StepOrderer`
+
+Create an abstract base class `StepOrderer` with one abstract method `order` that accepts a list of steps and returns a reordered list.
+
+#### Step 3 — `PriorityStepOrderer`
+
+Create a concrete subclass `PriorityStepOrderer` that sorts steps by **priority descending** first, then by **name ascending**.
+
+#### Step 4 — `ShoppingTrip` class
+
+Create a `ShoppingTrip` class whose constructor accepts a list of `ShoppingStep` objects and stores them internally.
+
+It must expose:
+
+- **`__iter__`** — so callers can use a regular `for` loop over the steps.
+- **`total_estimated_cost`** (property) — the sum of every step's `estimated_cost`, rounded to two decimals.
+- **`summary()`** method — returns a dictionary with `step_count` (total steps), `section_count` (number of unique store sections), and `highest_priority` (the largest priority value across all steps, defaulting to zero when the trip is empty).
+
+#### Step 5 — `ShoppingPlanner` class
+
+Create a `ShoppingPlanner` class whose constructor accepts an optional `orderer` (a `StepOrderer` instance) and falls back to a `PriorityStepOrderer` when none is provided. The bootstrap system discovers the first concrete `StepOrderer` subclass in your module and injects it as the `orderer` argument.
+
+##### `build_trip(items, restock_plan, offers, aisle_map)` method
+
+This method accepts four positional arguments: `items` (the pantry items — may be `PantryItem` objects or plain dicts, so handle both), `restock_plan` (suggestion dicts from `RestockAdvisor.build_plan`, each with `sku`, `name`, `recommended_quantity`, `priority`, and `reasons`), `offers` (offer dicts from `OfferEngine.build_offers`, each with `sku`, `title`, etc.), and `aisle_map` (loaded from `data/aisle_map.json` — contains `sku_sections`, `category_sections`, and `section_order`).
+
+Inside `build_trip`:
+
+1. Build a lookup dict `items_by_sku` mapping each item's `sku` to the item itself. Since items may be dicts or objects, use `isinstance` checks or `getattr` to read the SKU.
+2. Build a lookup dict `offer_notes` mapping each offer's `sku` to a list of that offer's `title` strings. These will become notes on the matching shopping step.
+3. Read `category_sections` and `sku_sections` from `aisle_map`.
+4. Loop over each suggestion in `restock_plan` and build a `ShoppingStep`:
+   - Look up the matching item from `items_by_sku` using the suggestion's `sku`. Read `unit_price`, `category`, and `name` from that item.
+   - Resolve the store section: check `sku_sections` for the SKU first; if not found, fall back to `category_sections` using the item's category, defaulting to `"General"`.
+   - Set `recommended_quantity` to at least one: `max(1, suggestion's recommended_quantity)`.
+   - Compute `estimated_cost` as `unit_price * recommended_quantity`, rounded to two decimals.
+   - Build `notes` by combining the suggestion's `reasons` list with any matching offer titles for that SKU. Deduplicate while preserving order.
+5. Pass the collected steps to `self._orderer.order(...)` to produce the final ordering — do **not** hard-code sorting inside the planner.
+6. Return a `ShoppingTrip` wrapping the ordered steps.
+
+##### Generator methods (optional but recommended)
+
+Add two generator methods for alternative iteration strategies:
+
+- **`yield_priority_items(self, steps)`** — yields steps sorted by priority descending, then name ascending.
+- **`yield_store_sections(self, steps, section_order)`** — yields steps sorted by their position in `section_order`, then by priority descending and name ascending within each section. Unknown sections sort last.
+
+#### Expected shapes
+
+Each `ShoppingStep` should expose these fields:
 
 ```python
 {
@@ -270,7 +306,7 @@ Each `ShoppingStep` should expose these fields (as a dataclass or plain object):
 
 The `ShoppingTrip` object must:
 1. Be iterable (implement `__iter__` yielding `ShoppingStep`s).
-2. Provide a `total_estimated_cost` property (float, sum of all step costs).
+2. Provide a `total_estimated_cost` property (sum of all step costs, rounded to two decimals).
 3. Provide a `summary()` method returning:
    ```python
    {"step_count": 6, "section_count": 4, "highest_priority": 3}
