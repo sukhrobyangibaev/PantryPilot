@@ -321,62 +321,68 @@ The `ShoppingTrip` object must:
 
 This is the final layer — it pulls together everything you built (inventory health, restock plan, offers, and trip) into a single report the insights page can display. Instead of one giant function, you'll write small section classes that each produce one part of the report. The builder also saves a plain-text snapshot to a file using a context manager (`with` block).
 
-1. Create an abstract `ReportSection` with a method like `build(context)` that returns one section of the final report.
+1. Create an abstract `ReportSection` with a method like `build(context)` that returns one section of the final report. Each section's `build(context)` must return `{"title": str, "body": str}`.
+
+   The `context` dictionary is assembled from the outputs of Tasks 1–5 and has this shape:
+   - `inventory`: `{"health_score": int, "expiring_soon": [{"name": str}, ...]}`
+   - `restock_plan`: list of items to restock
+   - `offers`: `{"total_estimated_savings": float}`
+   - `trip`: `{"total_estimated_cost": float, "summary": {"section_count": int}}`
+
+   Each section returns a fixed title and a dynamically formatted body built from `context`:
+
+   | Section | `title` | `body` (example) |
+   |---|---|---|
+   | `RestockCoverageSection` | `"Restock Coverage"` | `"The current plan covers 6 items across 4 store sections."` |
+   | `SavingsSection` | `"Savings Opportunities"` | `"Current offers could save about $8.86 on the next trip."` |
+   | `WasteRiskSection` | `"Waste Risk"` | `"2 pantry items need attention in the next few days. Watch out for: Whole Milk, Baby Spinach."` |
+
 2. Implement at least three concrete sections: `WasteRiskSection`, `SavingsSection`, and `RestockCoverageSection`.
 3. Implement `PantryReportBuilder` that receives section objects and composes the final report dictionary with `headline_metrics`, `sections`, and `generated_at`.
    - The builder must depend on the `ReportSection` abstraction so new sections can be added later without changing the builder.
-4. Add a context manager named `ReportArchive` that writes a human-readable text snapshot of the newest report to `data/generated/latest_report.txt`.
-   - If the target folder does not exist, create it safely.
-5. Use your `ReportArchive` context manager inside `PantryReportBuilder.build()` (or a dedicated helper method) so the snapshot is written every time a report is generated.
+   - The constructor must accept a list of section instances (positional or keyword `sections`). Its `build(context)` method must return:
+   ```python
+   {
+       "headline_metrics": {
+           "health_score": int,
+           "restock_items": int,
+           "estimated_savings": float,
+           "trip_cost": float,
+       },
+       "sections": [section_dict, ...],  # one dict per section, in order
+       "generated_at": str,  # ISO timestamp (e.g., "2026-05-03T10:46:15")
+   }
+   ```
+4. Implement a context manager class named `ReportArchive` that writes a plain-text snapshot of the report to `data/generated/latest_report.txt`.
+   - `__init__(self, report)` — accepts the full report dictionary (the return value of `PantryReportBuilder.build()`).
+   - `__enter__(self)` — creates the `data/generated/` folder if it doesn't exist (use `os.makedirs(..., exist_ok=True)`) and returns `self`.
+   - `__exit__(self, exc_type, exc_val, exc_tb)` — writes the snapshot to `data/generated/latest_report.txt` and returns `False`.
+   - Add a helper method `_format_report(self)` that reads `self.report` and returns a plain-text string like this:
+   ```
+   PantryPilot Latest Report
 
-#### Expected Interfaces
+   Health score: 0
+   Restock items: 6
+   Estimated savings: $8.86
+   Trip cost: $35.00
 
-Your code will be discovered and wired together automatically, so it must match the following contracts exactly.
+   Restock Coverage
+   The current plan covers 6 items across 4 store sections.
 
-**`ReportSection.build(context)`** returns a dictionary with these keys:
-```python
-{"title": str, "body": str}
-```
+   Savings Opportunities
+   Current offers could save about $8.86 on the next trip.
 
-**`PantryReportBuilder`** constructor must accept a list of section instances (positional or keyword `sections`). Its `build(context)` method must return a dictionary with this shape:
-```python
-{
-    "headline_metrics": {
-        "health_score": int,
-        "restock_items": int,
-        "estimated_savings": float,
-        "trip_cost": float,
-    },
-    "sections": [section_dict, ...],  # one dict per section, in order
-    "generated_at": str,  # ISO timestamp (e.g., "2026-05-03T10:46:15")
-}
-```
+   Waste Risk
+   2 pantry items need attention in the next few days. Watch out for: Whole Milk, Baby Spinach.
+   ```
+   The values come from `self.report["headline_metrics"]` and `self.report["sections"]`.
 
-**Context dictionary** passed to `build(context)` contains:
-- `inventory`: `{"health_score": int, "expiring_soon": [{"name": str}, ...]}`
-- `restock_plan`: list of items to restock
-- `offers`: `{"total_estimated_savings": float}`
-- `trip`: `{"total_estimated_cost": float, "summary": {"section_count": int}}`
-
-**`ReportArchive`** must be a context manager that writes a plain-text snapshot to `data/generated/latest_report.txt`. The snapshot should be human-readable and look like this:
-
-```
-PantryPilot Latest Report
-
-Health score: 0
-Restock items: 6
-Estimated savings: $8.86
-Trip cost: $35.00
-
-Restock Coverage
-The current plan covers 6 items across 4 store sections.
-
-Savings Opportunities
-Current offers could save about $8.86 on the next trip.
-
-Waste Risk
-2 pantry items need attention in the next few days. Watch out for: Whole Milk, Baby Spinach.
-```
+5. Use `ReportArchive` at the end of `PantryReportBuilder.build()` to save the snapshot:
+   ```python
+   with ReportArchive(report) as archive:
+       archive  # writing happens in __exit__
+   return report
+   ```
 
 **Verify:** The insights page becomes populated, headline metrics appear at the top, and the latest report preview shows meaningful text generated from your Python code.
 
